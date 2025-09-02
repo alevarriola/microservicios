@@ -1,10 +1,10 @@
 from fastapi import FastAPI
 
-app = FastAPI(title="Items Service")
+app = FastAPI(title="Orders Service")
 
 @app.get("/")
 def root():
-    return {"message": "Hello World desde Items Service"}
+    return {"message": "Hello World desde Orders Service"}
 
 @app.get("/health")
 def health():

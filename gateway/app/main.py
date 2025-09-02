@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request, Response
 import httpx
-from .settings import USERS_SERVICE_URL, ITEMS_SERVICE_URL
+from .settings import USERS_SERVICE_URL, ITEMS_SERVICE_URL, ORDERS_SERVICE_URL
 
 app = FastAPI(title="API Gateway")
 
@@ -22,6 +22,12 @@ async def users_proxy(request: Request, path: str = ""):
 @app.api_route("/items{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
 async def items_proxy(request: Request, path: str = ""):
     url = f"{ITEMS_SERVICE_URL}{path or '/'}"
+    return await _proxy(request, url)
+
+# Proxy hacia orders-service
+@app.api_route("/orders{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+async def orders_proxy(request: Request, path: str = ""):
+    url = f"{ORDERS_SERVICE_URL}{path or '/'}"
     return await _proxy(request, url)
 
 async def _proxy(request: Request, url: str):
