@@ -1,10 +1,8 @@
 from fastapi import FastAPI
+from .routers import router
 
 app = FastAPI(title="Users Service")
-
-@app.get("/")
-def root():
-    return {"message": "Hello World desde Users Service"}
+app.include_router(router)
 
 @app.get("/health")
 def health():
