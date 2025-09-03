@@ -1,10 +1,8 @@
 from fastapi import FastAPI
+from .routers import router
 
 app = FastAPI(title="Items Service")
-
-@app.get("/")
-def root():
-    return {"message": "Hello World desde Items Service"}
+app.include_router(router)   # expone GET/POST en "/"
 
 @app.get("/health")
 def health():
