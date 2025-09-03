@@ -34,3 +34,10 @@ def create_user(payload: UserIn, db: Session = Depends(get_db)):
         return crud.create_user(db, payload.name, payload.email)
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
+    
+@router.get("/{user_id}", response_model=UserOut)
+def get_user(user_id: int, db: Session = Depends(get_db)):
+    u = crud.get_user_by_id(db, user_id)
+    if not u:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return u

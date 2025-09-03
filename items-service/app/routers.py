@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from .db import SessionLocal, engine
@@ -41,3 +41,16 @@ def create_item(payload: ItemIn, db: Session = Depends(get_db)):
     except ValueError as e:
         # SKU duplicado
         raise HTTPException(status_code=409, detail=str(e))
+
+# ruta reserve para verificar stock y existencia, descontar stock dependiendo de Orders qty    
+@router.post("/reserve", response_model=ItemOut)
+def reserve_item(sku: str = Body(..., embed=True), qty: int = Body(..., gt=0), db: Session = Depends(get_db)):
+    item = crud.get_item_by_sku(db, sku)
+    if not item:
+        raise HTTPException(status_code=404, detail="Item no encontrado")
+    if item.stock < qty:
+        raise HTTPException(status_code=409, detail="Stock insuficiente")
+    item.stock -= qty
+    db.commit()
+    db.refresh(item)
+    return item
