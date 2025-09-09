@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
 from common.auth import verify_service_token
+from common.logging import log_json
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from .db import SessionLocal, engine
@@ -32,15 +33,19 @@ class ItemOut(ItemIn):
 
 @router.get("/", response_model=list[ItemOut])
 def list_items(db: Session = Depends(get_db)):
-    return crud.list_items(db)
+    items = crud.list_items(db)
+    log_json("info", "items.listed", count=len(items))
+    return items
 
 
 @router.post("/", response_model=ItemOut, status_code=201)
 def create_item(payload: ItemIn, db: Session = Depends(get_db)):
     try:
-        return crud.create_item(db, payload.name, payload.sku, payload.stock)
+        item = crud.create_item(db, payload.name, payload.sku, payload.stock)
+        log_json("info", "item.created", item_id=item.id, sku=item.sku, stock=item.stock)
+        return item
     except ValueError as e:
-        # SKU duplicado
+        log_json("warn", "item.create.conflict", sku=payload.sku)
         raise HTTPException(status_code=409, detail=str(e))
 
 # ruta reserve para verificar stock y existencia, descontar stock dependiendo de Orders qty    
@@ -48,10 +53,13 @@ def create_item(payload: ItemIn, db: Session = Depends(get_db)):
 def reserve_item(sku: str = Body(..., embed=True), qty: int = Body(..., gt=0), db: Session = Depends(get_db)):
     item = crud.get_item_by_sku(db, sku)
     if not item:
+        log_json("warn", "item.reserve.not_found", sku=sku)
         raise HTTPException(status_code=404, detail="Item no encontrado")
     if item.stock < qty:
+        log_json("warn", "item.reserve.no_stock", sku=sku, requested=qty, available=item.stock)
         raise HTTPException(status_code=409, detail="Stock insuficiente")
     item.stock -= qty
     db.commit()
     db.refresh(item)
+    log_json("info", "item.reserve.ok", item_id=item.id, new_stock=item.stock)
     return item

@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from .db import SessionLocal, engine
 from .models import Base
 from . import crud
+from common.logging import log_json
 
 router = APIRouter(tags=["users"])
 
@@ -26,13 +27,18 @@ class UserOut(UserIn):
 
 @router.get("/", response_model=list[UserOut])
 def list_users(db: Session = Depends(get_db)):
+    users = crud.list_users(db)
+    log_json("info", "users.listed", count=len(users))
     return crud.list_users(db)
 
 @router.post("/", response_model=UserOut, status_code=201)
 def create_user(payload: UserIn, db: Session = Depends(get_db)):
     try:
-        return crud.create_user(db, payload.name, payload.email)
+        user = crud.create_user(db, payload.name, payload.email)
+        log_json("info", "user.created", user_id=user.id, email=user.email)
+        return user
     except ValueError as e:
+        log_json("warn", "user.create.conflict", email=payload.email)
         raise HTTPException(status_code=409, detail=str(e))
     
 @router.get("/{user_id}", response_model=UserOut)
