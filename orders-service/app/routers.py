@@ -2,10 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from common.auth import verify_service_token
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from common import http
 from .db import SessionLocal, engine
 from .models import Base
 from . import crud
-import httpx
 import os
 
 USERS_SERVICE_URL  = os.getenv("USERS_SERVICE_URL",  "http://127.0.0.1:8001")
@@ -38,21 +38,22 @@ def list_orders(db: Session = Depends(get_db)):
 @router.post("/", response_model=OrderOut, status_code=201, dependencies=[Depends(verify_service_token)])
 def create_order(payload: OrderIn, db: Session = Depends(get_db)):
     
-    # Verificar usuario
-    with httpx.Client() as client:
-        r = client.get(f"{USERS_SERVICE_URL}/{payload.user_id}")
-        if r.status_code == 404:
-            raise HTTPException(status_code=404, detail="Usuario no encontrado")
-        r.raise_for_status()
+    try:
+        r = http.request("GET", f"{USERS_SERVICE_URL}/{payload.user_id}")
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    if r.status_code == 404:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
-    # Reservar stock
-    with httpx.Client() as client:
-        r = client.post(f"{ITEMS_SERVICE_URL}/reserve",
-                        json={"sku": str(payload.item_sku), "qty": payload.qty})
-        if r.status_code == 404:
-            raise HTTPException(status_code=404, detail="Item no encontrado")
-        if r.status_code == 409:
-            raise HTTPException(status_code=409, detail="Stock insuficiente")
+    try:
+        r = http.request("POST", f"{ITEMS_SERVICE_URL}/reserve",
+                        json={"item_id": payload.item_id, "qty": payload.qty})
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    if r.status_code == 404:
+        raise HTTPException(status_code=404, detail="Item no encontrado")
+    if r.status_code == 409:
+        raise HTTPException(status_code=409, detail="Stock insuficiente")
     
     # Crear orden
     try:
