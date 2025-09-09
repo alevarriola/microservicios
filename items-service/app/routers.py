@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body, Response
 from common.auth import verify_service_token
 from common.logging import log_json
 from pydantic import BaseModel, Field
@@ -30,6 +30,11 @@ class ItemIn(BaseModel):
 class ItemOut(ItemIn):
     id: int
 
+# Validacion de lo que entrara en metodo put
+class ItemUpdate(BaseModel):
+    name: str | None = Field(default=None, max_length=100)
+    sku:  str | None = Field(default=None, max_length=60)
+    stock: int | None = Field(default=None, ge=0)
 
 @router.get("/", response_model=list[ItemOut])
 def list_items(db: Session = Depends(get_db)):
@@ -63,3 +68,20 @@ def reserve_item(sku: str = Body(..., embed=True), qty: int = Body(..., gt=0), d
     db.refresh(item)
     log_json("info", "item.reserve.ok", item_id=item.id, new_stock=item.stock)
     return item
+
+@router.put("/{item_id}", response_model=ItemOut, summary="Actualizar item")
+def update_item_route(item_id: int, payload: ItemUpdate, db: Session = Depends(get_db)):
+    try:
+        updated = crud.update_item(db, item_id, payload.name, payload.sku, payload.stock)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    if not updated:
+        raise HTTPException(status_code=404, detail="Item no encontrado")
+    return updated
+
+@router.delete("/{item_id}", status_code=204, summary="Eliminar item")
+def delete_item_route(item_id: int, db: Session = Depends(get_db)):
+    ok = crud.delete_item(db, item_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Item no encontrado")
+    return Response(status_code=204)

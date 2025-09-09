@@ -18,3 +18,21 @@ def create_user(db: Session, name: str, email: str):
     db.commit()
     db.refresh(u)
     return u
+
+def update_user(db: Session, user_id: int, name: str | None = None, email: str | None = None):
+    user = get_user_by_id(db, user_id)
+    if not user:
+        return None
+    if email and db.query(User).filter(User.email == email, User.id != user_id).first():
+        raise ValueError("Email ya registrado")
+    if name  is not None: user.name  = name
+    if email is not None: user.email = email
+    db.commit(); db.refresh(user)
+    return user
+
+def delete_user(db: Session, user_id: int) -> bool:
+    user = get_user_by_id(db, user_id)
+    if not user:
+        return False
+    db.delete(user); db.commit()
+    return True
