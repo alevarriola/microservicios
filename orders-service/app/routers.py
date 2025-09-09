@@ -26,7 +26,7 @@ def get_db():
 class OrderIn(BaseModel):
     user_id: int = Field(gt=0)
     item_sku: str = Field(min_length=1, max_length=60)
-    qty: int = Field(default=1, gt=0)
+    qty: int = Field(default=1, gt=0) # greater than
 
 class OrderOut(OrderIn):
     id: int
@@ -41,7 +41,7 @@ def list_orders(db: Session = Depends(get_db)):
 @router.post("/", response_model=OrderOut, status_code=201, dependencies=[Depends(verify_service_token)])
 def create_order(payload: OrderIn, db: Session = Depends(get_db)):
     
-    #Verificar usuario
+    #Verificar que usuario exista
     try:
          r = http.request(
             "GET",
@@ -55,7 +55,7 @@ def create_order(payload: OrderIn, db: Session = Depends(get_db)):
         log_json("warn", "user.not_found", user_id=payload.user_id)
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
-    #Reservar stock
+    #Verificar reserva de stock
     try:
        r = http.request(
             "POST",
@@ -73,7 +73,7 @@ def create_order(payload: OrderIn, db: Session = Depends(get_db)):
         log_json("warn", "item.no_stock", item_sku=payload.item_sku, requested=payload.qty)
         raise HTTPException(status_code=409, detail="Stock insuficiente")
 
-    #Crear orden
+    #Si todo sale bien, Crear orden
     try:
         order = crud.create_order(db, payload.user_id, payload.item_sku, payload.qty)
         log_json("info", "order.created", order_id=order.id, user_id=order.user_id, item_sku=order.item_sku, qty=order.qty)

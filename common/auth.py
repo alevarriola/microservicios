@@ -1,6 +1,7 @@
 import os
 from fastapi import Header, HTTPException
 
+# busca en las variables de entorno el SS
 SECRET = os.getenv("SERVICE_SECRET", "dev-secret")
 
 def add_service_auth(headers: dict) -> dict:

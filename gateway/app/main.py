@@ -32,11 +32,14 @@ async def orders_proxy(request: Request, path: str = ""):
     return await _proxy(request, url)
 
 async def _proxy(request: Request, url: str):
+    # Guardamos el Get/Post
     method = request.method
-    # Pasamos headers y body originales
+
+    # Pasamos headers y body originales, al headers añadimos autenticacion interna
     headers = {k: v for k, v in request.headers.items() if k.lower() != "host"}
     headers = add_service_auth(headers)
     body = await request.body()
+
     # Incluimos querystring
     qs = request.url.query
     if qs:
