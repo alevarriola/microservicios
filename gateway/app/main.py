@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request, Response
 import httpx
 from .settings import USERS_SERVICE_URL, ITEMS_SERVICE_URL, ORDERS_SERVICE_URL
+from common.auth import add_service_auth
 
 app = FastAPI(title="API Gateway")
 
@@ -34,6 +35,7 @@ async def _proxy(request: Request, url: str):
     method = request.method
     # Pasamos headers y body originales
     headers = {k: v for k, v in request.headers.items() if k.lower() != "host"}
+    headers = add_service_auth(headers)
     body = await request.body()
     # Incluimos querystring
     qs = request.url.query

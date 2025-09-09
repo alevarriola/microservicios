@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from common.auth import verify_service_token
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from .db import SessionLocal, engine
@@ -34,7 +35,7 @@ class OrderOut(OrderIn):
 def list_orders(db: Session = Depends(get_db)):
     return crud.list_orders(db)
 
-@router.post("/", response_model=OrderOut, status_code=201)
+@router.post("/", response_model=OrderOut, status_code=201, dependencies=[Depends(verify_service_token)])
 def create_order(payload: OrderIn, db: Session = Depends(get_db)):
     
     # Verificar usuario

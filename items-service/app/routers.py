@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
+from common.auth import verify_service_token
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from .db import SessionLocal, engine
@@ -43,7 +44,7 @@ def create_item(payload: ItemIn, db: Session = Depends(get_db)):
         raise HTTPException(status_code=409, detail=str(e))
 
 # ruta reserve para verificar stock y existencia, descontar stock dependiendo de Orders qty    
-@router.post("/reserve", response_model=ItemOut)
+@router.post("/reserve", response_model=ItemOut, dependencies=[Depends(verify_service_token)])
 def reserve_item(sku: str = Body(..., embed=True), qty: int = Body(..., gt=0), db: Session = Depends(get_db)):
     item = crud.get_item_by_sku(db, sku)
     if not item:
