@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from common.auth import verify_service_token
+from common.auth import verify_service_token, add_service_auth
 from common.logging import log_json
 from common import http
 from pydantic import BaseModel, Field
@@ -43,7 +43,11 @@ def create_order(payload: OrderIn, db: Session = Depends(get_db)):
     
     #Verificar usuario
     try:
-        r = http.request("GET", f"{USERS_SERVICE_URL}/{payload.user_id}")
+         r = http.request(
+            "GET",
+            f"{USERS_SERVICE_URL}/{payload.user_id}",
+            headers=add_service_auth({})  
+        )
     except RuntimeError as e:
         log_json("error", "user.service.unavailable", user_id=payload.user_id)
         raise HTTPException(status_code=503, detail=str(e))
@@ -53,22 +57,27 @@ def create_order(payload: OrderIn, db: Session = Depends(get_db)):
 
     #Reservar stock
     try:
-        r = http.request("POST", f"{ITEMS_SERVICE_URL}/reserve", json={"item_id": payload.item_id, "qty": payload.qty})
+       r = http.request(
+            "POST",
+            f"{ITEMS_SERVICE_URL}/reserve",
+            json={"sku": payload.item_sku, "qty": payload.qty}, 
+            headers=add_service_auth({})  
+        )
     except RuntimeError as e:
-        log_json("error", "item.service.unavailable", item_id=payload.item_id)
+        log_json("error", "item.service.unavailable", item_sku=payload.item_sku)
         raise HTTPException(status_code=503, detail=str(e))
     if r.status_code == 404:
-        log_json("warn", "item.not_found", item_id=payload.item_id)
+        log_json("warn", "item.not_found", item_sku=payload.item_sku)
         raise HTTPException(status_code=404, detail="Item no encontrado")
     if r.status_code == 409:
-        log_json("warn", "item.no_stock", item_id=payload.item_id, requested=payload.qty)
+        log_json("warn", "item.no_stock", item_sku=payload.item_sku, requested=payload.qty)
         raise HTTPException(status_code=409, detail="Stock insuficiente")
 
     #Crear orden
     try:
-        order = crud.create_order(db, payload.user_id, payload.item_id, payload.qty)
-        log_json("info", "order.created", order_id=order.id, user_id=order.user_id, item_id=order.item_id, qty=order.qty)
+        order = crud.create_order(db, payload.user_id, payload.item_sku, payload.qty)
+        log_json("info", "order.created", order_id=order.id, user_id=order.user_id, item_sku=order.item_sku, qty=order.qty)
         return order
     except Exception as e:
-        log_json("error", "order.create.failed", user_id=payload.user_id, item_id=payload.item_id)
+        log_json("error", "order.create.failed", user_id=payload.user_id, item_sku=payload.item_sku)
         raise HTTPException(status_code=400, detail=str(e))
