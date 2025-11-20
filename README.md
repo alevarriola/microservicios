@@ -31,7 +31,7 @@ Es un proyecto ideal para usar en clases o como base para experimentar con patro
 
 ---
 
-## 🏗️ Arquitectura
+## Arquitectura
 
 ```text
 [ Cliente ]
